@@ -1,0 +1,17 @@
+{
+  "name": "@coco-kit/zod",
+  "type": "module",
+  "exports": {
+    "./helpers": "./src/helpers/index.ts",
+    "./schema": "./src/schemas/index.ts"
+  },
+  "dependencies": {
+    "nanoid": "^5.1.6"
+  },
+  "peerDependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
+}

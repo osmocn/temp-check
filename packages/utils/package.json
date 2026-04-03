@@ -1,0 +1,17 @@
+{
+  "name": "@coco-kit/utils",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "pnpm typecheck",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.3",
+    "typescript": "^5"
+  }
+}

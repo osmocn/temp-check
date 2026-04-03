@@ -1,0 +1,35 @@
+{
+  "name": "@coco-kit/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./globals.css": "./globals.css",
+    "./lib/*": "./src/lib/*.ts",
+    "./components/*": "./src/components/*.tsx",
+    "./hooks/*": "./src/hooks/*.ts"
+  },
+  "scripts": {
+    "build": "pnpm typecheck",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "shadcn:add": "pnpm dlx shadcn@latest add"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.1.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.3",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.8.3"
+  }
+}
