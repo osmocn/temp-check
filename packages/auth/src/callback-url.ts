@@ -1,4 +1,4 @@
-import { trustedOrigins } from "./auth";
+import { getTrustedOrigins } from "./auth";
 
 export type HeaderLookup = {
   get(name: string): string | null;
@@ -15,7 +15,7 @@ export function isTrustedAbsoluteCallbackURL(value: string) {
 
   const url = new URL(value);
 
-  return trustedOrigins.includes(url.origin);
+  return getTrustedOrigins().includes(url.origin);
 }
 
 export function normalizeTrustedCallbackURL(value: string) {

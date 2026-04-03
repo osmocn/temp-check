@@ -5,85 +5,123 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { openAPI, admin, magicLink } from "better-auth/plugins";
 
-export const trustedOrigins = getEnvVariable("BETTER_AUTH_TRUSTED_ORIGINS")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-if (trustedOrigins.length === 0) {
-  throw new Error("Missing environment variable: BETTER_AUTH_TRUSTED_ORIGINS");
+function parseTrustedOrigins(value: string) {
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
-export const authBaseURL = getEnvVariable("BETTER_AUTH_BASE_URL");
-const authSecret = getEnvVariable("BETTER_AUTH_SECRET");
+export function getTrustedOrigins() {
+  const trustedOrigins = parseTrustedOrigins(
+    getEnvVariable("BETTER_AUTH_TRUSTED_ORIGINS"),
+  );
 
-export const auth = betterAuth({
-  advanced: {
-    database: {
-      generateId: () => {
-        return crypto.randomUUID();
+  if (trustedOrigins.length === 0) {
+    throw new Error("Missing environment variable: BETTER_AUTH_TRUSTED_ORIGINS");
+  }
+
+  return trustedOrigins;
+}
+
+export function getAuthBaseURL() {
+  return getEnvVariable("BETTER_AUTH_BASE_URL");
+}
+
+function getAuthSecret() {
+  return getEnvVariable("BETTER_AUTH_SECRET");
+}
+
+function createAuth() {
+  return betterAuth({
+    advanced: {
+      database: {
+        generateId: () => {
+          return crypto.randomUUID();
+        },
       },
     },
-  },
-  plugins: [
-    openAPI(),
-    admin(),
-    magicLink({
-      // emails
-      sendMagicLink: async ({ email: to, url }) => {
-        await email.sendMagicLink(to, { url });
+    plugins: [
+      openAPI(),
+      admin(),
+      magicLink({
+        // emails
+        sendMagicLink: async ({ email: to, url }) => {
+          await email.sendMagicLink(to, { url });
+        },
+      }),
+    ],
+    basePath: "/api/auth",
+    baseURL: getAuthBaseURL(),
+    secret: getAuthSecret(),
+    trustedOrigins: getTrustedOrigins(),
+    database: drizzleAdapter(db, {
+      provider: "pg",
+      schema: {
+        user: authSchema.user,
+        account: authSchema.account,
+        session: authSchema.session,
+        verification: authSchema.verification,
       },
     }),
-  ],
-  basePath: "/api/auth",
-  baseURL: authBaseURL,
-  secret: authSecret,
-  trustedOrigins,
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema: {
-      user: authSchema.user,
-      account: authSchema.account,
-      session: authSchema.session,
-      verification: authSchema.verification,
-    },
-  }),
-  user: {
-    changeEmail: {
-      enabled: true,
+    user: {
+      changeEmail: {
+        enabled: true,
 
-      // emails
-      sendChangeEmailConfirmation: async ({ user, url, newEmail }) => {
-        await email.sendEmailChange(user.email, {
-          name: user.name,
-          newEmail,
-          url,
-        });
+        // emails
+        sendChangeEmailConfirmation: async ({ user, url, newEmail }) => {
+          await email.sendEmailChange(user.email, {
+            name: user.name,
+            newEmail,
+            url,
+          });
+        },
       },
     },
-  },
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false,
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: false,
 
-    // emails
-    sendResetPassword: async ({ url, user }) => {
-      await email.sendPasswordReset(user.email, { name: user.name, url });
+      // emails
+      sendResetPassword: async ({ url, user }) => {
+        await email.sendPasswordReset(user.email, { name: user.name, url });
+      },
+      onPasswordReset: async ({ user }) => {
+        await email.sendPasswordResetSuccess(user.email, { name: user.name });
+      },
     },
-    onPasswordReset: async ({ user }) => {
-      await email.sendPasswordResetSuccess(user.email, { name: user.name });
-    },
-  },
-  emailVerification: {
-    autoSignInAfterVerification: true,
-    sendOnSignUp: false,
+    emailVerification: {
+      autoSignInAfterVerification: true,
+      sendOnSignUp: false,
 
-    // emails
-    sendVerificationEmail: async ({ url, user }) => {
-      await email.sendVerifyEmail(user.email, { name: user.name, url });
+      // emails
+      sendVerificationEmail: async ({ url, user }) => {
+        await email.sendVerifyEmail(user.email, { name: user.name, url });
+      },
+      afterEmailVerification: async ({ name, email: userEmail }) => {
+        await email.sendEmailVerified(userEmail, { name, email: userEmail });
+      },
     },
-    afterEmailVerification: async ({ name, email: userEmail }) => {
-      await email.sendEmailVerified(userEmail, { name, email: userEmail });
-    },
+  });
+}
+
+type AuthInstance = ReturnType<typeof createAuth>;
+
+let authInstance: AuthInstance | undefined;
+
+export function getAuth(): AuthInstance {
+  if (!authInstance) {
+    authInstance = createAuth();
+  }
+
+  return authInstance;
+}
+
+export const auth = new Proxy({} as AuthInstance, {
+  get(_target, prop) {
+    const authInstance = getAuth();
+    const value = Reflect.get(authInstance, prop);
+
+    return typeof value === "function" ? value.bind(authInstance) : value;
   },
 });

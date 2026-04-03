@@ -6,38 +6,45 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const connectionString = getEnvVariable("DATABASE_URL");
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required to initialize @coco-kit/db");
-}
+type Database = PostgresJsDatabase<typeof schema>;
 
 declare global {
   // eslint-disable-next-line no-var
   var pgClient: ReturnType<typeof postgres> | undefined;
   // eslint-disable-next-line no-var
-  var drizzleDb: PostgresJsDatabase<typeof schema> | undefined;
+  var drizzleDb: Database | undefined;
 }
 
-let db: PostgresJsDatabase<typeof schema>;
+function createDb() {
+  const connectionString = getEnvVariable("DATABASE_URL");
+  const connectionOptions = {
+    prepare: false,
+    max: process.env.NODE_ENV === "production" ? 10 : 1,
+  };
 
-const connectionOptions = {
-  prepare: false,
-  max: getEnvVariable("NODE_ENV") === "production" ? 10 : 1,
-};
+  if (!global.pgClient) {
+    global.pgClient = postgres(connectionString, connectionOptions);
+  }
 
-if (!global.pgClient) {
-  global.pgClient = postgres(connectionString, connectionOptions);
+  if (!global.drizzleDb) {
+    global.drizzleDb = drizzle(global.pgClient, { schema });
+  }
+
+  return global.drizzleDb;
 }
 
-if (!global.drizzleDb) {
-  global.drizzleDb = drizzle(global.pgClient, { schema });
+export function getDb() {
+  return global.drizzleDb ?? createDb();
 }
 
-db = global.drizzleDb;
+const db = new Proxy({} as Database, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getDb(), prop, receiver);
+  },
+});
 
 export default db;
-export type DBExecutor = typeof db;
+export type DBExecutor = Database;
 export type DBTransaction = Parameters<DBExecutor["transaction"]>[0] extends (
   tx: infer T,
 ) => unknown

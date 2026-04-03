@@ -1,4 +1,4 @@
-import { auth, authBaseURL } from "../auth";
+import { auth, getAuthBaseURL } from "../auth";
 import {
   type HeaderLookup,
   resolveTrustedCallbackURL,
@@ -242,7 +242,7 @@ async function getFreshSession(headers: AuthRequestHeaders) {
 }
 
 function getConfirmEmailChangeURL(token: string, callbackURL: string) {
-  return `${authBaseURL}/api/account/confirm-email-change?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent(callbackURL)}`;
+  return `${getAuthBaseURL()}/api/account/confirm-email-change?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent(callbackURL)}`;
 }
 
 async function readPendingEmailChange(
