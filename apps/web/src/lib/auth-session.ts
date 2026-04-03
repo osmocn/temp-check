@@ -16,7 +16,7 @@ export async function getAuthSession(
 
   const requestInit = {
     cache: "no-store" as const,
-    ...(options.headers ? { headers: options.headers } : {}),
+    ...(options.headers ? { headers: new Headers(options.headers) } : {}),
   };
 
   const response = await fetch(sessionURL, {

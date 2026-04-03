@@ -31,7 +31,10 @@ function normalizeRedirectFields(payload: Record<string, unknown>) {
 function createNormalizedRequest(
   request: Request,
   url: URL,
-  init: Pick<RequestInit, "body" | "headers">,
+  init: {
+    body?: BodyInit | null;
+    headers: HeadersInit;
+  },
 ) {
   const headers = new Headers(init.headers);
   headers.delete("content-length");
@@ -46,6 +49,15 @@ function createNormalizedRequest(
   }
 
   return new Request(url, nextInit);
+}
+
+async function cloneRequestBody(request: Request) {
+  if (request.body === null) {
+    return null;
+  }
+
+  const body = await request.clone().arrayBuffer();
+  return new Uint8Array(body);
 }
 
 export async function normalizeAuthHandlerRequest(request: Request) {
@@ -65,7 +77,9 @@ export async function normalizeAuthHandlerRequest(request: Request) {
   }
 
   if (request.method === "GET" || request.method === "HEAD") {
-    return queryChanged ? new Request(url, request) : request;
+    return queryChanged
+      ? createNormalizedRequest(request, url, { headers })
+      : request;
   }
 
   const contentType = headers.get("content-type") ?? "";
@@ -74,7 +88,12 @@ export async function normalizeAuthHandlerRequest(request: Request) {
     const payload = await request.clone().json().catch(() => null);
 
     if (!payload || typeof payload !== "object") {
-      return queryChanged ? new Request(url, request) : request;
+      return queryChanged
+        ? createNormalizedRequest(request, url, {
+            body: await cloneRequestBody(request),
+            headers,
+          })
+        : request;
     }
 
     const nextPayload = { ...(payload as Record<string, unknown>) };
@@ -115,5 +134,10 @@ export async function normalizeAuthHandlerRequest(request: Request) {
     });
   }
 
-  return queryChanged ? new Request(url, request) : request;
+  return queryChanged
+    ? createNormalizedRequest(request, url, {
+        body: await cloneRequestBody(request),
+        headers,
+      })
+    : request;
 }
